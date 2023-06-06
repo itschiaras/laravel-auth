@@ -6,6 +6,8 @@ use App\Models\Project;
 use App\Http\Requests\StoreProjectRequest;
 use App\Http\Requests\UpdateProjectRequest;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
 
 
 class ProjectController extends Controller
@@ -39,7 +41,17 @@ class ProjectController extends Controller
      */
     public function store(StoreProjectRequest $request)
     {
-        //
+        $form_data = $request->validated();
+        $slug = Str::slug($request->title, '-');
+        $form_data['slug'] = $slug;
+        if($request->hasFile('image')) {
+            $img_path = Storage::put('uploads', $request->image);
+            $form_data['image'] = asset('storage/'. $img_path);
+        }
+
+        $newProject = Project::create($form_data);
+        return redirect()->route('admin.projects.show', $newProject->slug);
+
     }
 
     /**
@@ -73,7 +85,19 @@ class ProjectController extends Controller
      */
     public function update(UpdateProjectRequest $request, Project $project)
     {
-        //
+        $form_data = $request->validated();
+        $slug = Str::slug($request->title, '-');
+        $form_data['slug'] = $slug;
+        if($request->hasFile('image')) {
+            if($project->image) {
+                Storage::delete($project->image);
+            }
+            $img_path = Storage::put('uploads', $request->image);
+            $form_data['image'] = asset('storage/'. $img_path);
+        }
+
+        $project->update($form_data);
+        return redirect()->route('admin.posts.show', $project->slug);
     }
 
     /**
@@ -84,6 +108,10 @@ class ProjectController extends Controller
      */
     public function destroy(Project $project)
     {
+        if($project->image) {
+            Storage::delete($project->image);
+        }
+
         $project->delete();
         return redirect()->route('admin.projects.index')->with('message', "$project->title deleted successfully.");
     }
